@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: taskmanager-sql
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: TaskManager2026
+    ports:
+      - '1433:1433'
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P TaskManager2026 -C -Q 'SELECT 1' || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - taskmanager-network
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: taskmanager-db-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    volumes:
+      - ./TaskManagerApi/SQL:/sql
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        set -e;
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P TaskManager2026 -C -b -Q "SELECT 1";
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P TaskManager2026 -C -b -i /sql/00_CreateDatabase.sql;
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P TaskManager2026 -C -b -d BasicTraining -i /sql/01_CreateBaseSchema.sql;
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P TaskManager2026 -C -b -d BasicTraining -i /sql/02_DashboardSchema.sql;
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P TaskManager2026 -C -b -d BasicTraining -i /sql/03_FeatureTables.sql;
+        echo "Database initialization completed.";
+    restart: 'no'
+    networks:
+      - taskmanager-network
+
+  api:
+    build:
+      context: ./TaskManagerApi
+      dockerfile: Dockerfile
+    container_name: taskmanager-api
+    ports:
+      - '5022:80'
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:80
+      ConnectionStrings__BTConnection: 'Server=sqlserver,1433;Database=BasicTraining;User Id=sa;Password=TaskManager2026;TrustServerCertificate=True;'
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - taskmanager-network
+
+  ui:
+    build:
+      context: ./task-manager-ui
+      dockerfile: Dockerfile
+    container_name: taskmanager-ui
+    ports:
+      - '5173:80'
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - taskmanager-network
+
+volumes:
+  sql_data:
+
+networks:
+  taskmanager-network:
+    driver: bridge
