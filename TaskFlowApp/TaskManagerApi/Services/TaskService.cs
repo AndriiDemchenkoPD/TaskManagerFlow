@@ -78,25 +78,27 @@ namespace TaskManagerApi.Services
             cmd.Parameters.AddWithValue("@uid", userId);
 
             conn.Open();
-            var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
             {
-                tasks.Add(new TaskItem
+                using var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
                 {
-                    TaskId = (int)reader["TaskId"],
-                    UserId = (int)reader["UserId"],
-                    Title = reader["Title"]?.ToString() ?? string.Empty,
-                    Description = reader["Description"]?.ToString() ?? string.Empty,
-                    Status = reader["Status"]?.ToString() ?? "Pending",
-                    Priority = reader["Priority"]?.ToString() ?? "Medium",
-                    Category = reader["Category"]?.ToString() ?? "General",
-                    DueDate = reader["DueDate"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["DueDate"],
-                    CreatedAt = reader["CreatedAt"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["CreatedAt"],
-                    ProjectId = reader["ProjectId"] == DBNull.Value ? null : (int?)reader["ProjectId"],
-                    CompletedAt = reader["CompletedAt"] == DBNull.Value ? null : (DateTime?)reader["CompletedAt"],
-                    IsDeleted = reader["IsDeleted"] == DBNull.Value ? false : (bool)reader["IsDeleted"]
-                });
+                    tasks.Add(new TaskItem
+                    {
+                        TaskId = (int)reader["TaskId"],
+                        UserId = (int)reader["UserId"],
+                        Title = reader["Title"]?.ToString() ?? string.Empty,
+                        Description = reader["Description"]?.ToString() ?? string.Empty,
+                        Status = reader["Status"]?.ToString() ?? "Pending",
+                        Priority = reader["Priority"]?.ToString() ?? "Medium",
+                        Category = reader["Category"]?.ToString() ?? "General",
+                        DueDate = reader["DueDate"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["DueDate"],
+                        CreatedAt = reader["CreatedAt"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["CreatedAt"],
+                        ProjectId = reader["ProjectId"] == DBNull.Value ? null : (int?)reader["ProjectId"],
+                        CompletedAt = reader["CompletedAt"] == DBNull.Value ? null : (DateTime?)reader["CompletedAt"],
+                        IsDeleted = reader["IsDeleted"] == DBNull.Value ? false : (bool)reader["IsDeleted"]
+                    });
+                }
             }
 
             PopulateTaskTagIds(conn, tasks, userId);
@@ -185,25 +187,27 @@ namespace TaskManagerApi.Services
             conn.Open();
             
             int totalCount = (int)countCmd.ExecuteScalar();
-            var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
             {
-                tasks.Add(new TaskItem
+                using var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
                 {
-                    TaskId = (int)reader["TaskId"],
-                    UserId = (int)reader["UserId"],
-                    Title = reader["Title"]?.ToString() ?? string.Empty,
-                    Description = reader["Description"]?.ToString() ?? string.Empty,
-                    Status = reader["Status"]?.ToString() ?? "Pending",
-                    Priority = reader["Priority"]?.ToString() ?? "Medium",
-                    Category = reader["Category"]?.ToString() ?? "General",
-                    DueDate = reader["DueDate"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["DueDate"],
-                    CreatedAt = reader["CreatedAt"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["CreatedAt"],
-                    ProjectId = reader["ProjectId"] == DBNull.Value ? null : (int?)reader["ProjectId"],
-                    CompletedAt = reader["CompletedAt"] == DBNull.Value ? null : (DateTime?)reader["CompletedAt"],
-                    IsDeleted = reader["IsDeleted"] == DBNull.Value ? false : (bool)reader["IsDeleted"]
-                });
+                    tasks.Add(new TaskItem
+                    {
+                        TaskId = (int)reader["TaskId"],
+                        UserId = (int)reader["UserId"],
+                        Title = reader["Title"]?.ToString() ?? string.Empty,
+                        Description = reader["Description"]?.ToString() ?? string.Empty,
+                        Status = reader["Status"]?.ToString() ?? "Pending",
+                        Priority = reader["Priority"]?.ToString() ?? "Medium",
+                        Category = reader["Category"]?.ToString() ?? "General",
+                        DueDate = reader["DueDate"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["DueDate"],
+                        CreatedAt = reader["CreatedAt"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["CreatedAt"],
+                        ProjectId = reader["ProjectId"] == DBNull.Value ? null : (int?)reader["ProjectId"],
+                        CompletedAt = reader["CompletedAt"] == DBNull.Value ? null : (DateTime?)reader["CompletedAt"],
+                        IsDeleted = reader["IsDeleted"] == DBNull.Value ? false : (bool)reader["IsDeleted"]
+                    });
+                }
             }
 
             PopulateTaskTagIds(conn, tasks, userId);

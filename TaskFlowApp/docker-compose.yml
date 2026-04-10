@@ -1,6 +1,13 @@
-version: '3.8'
-
 services:
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: taskmanager-mailpit
+    ports:
+      - '8025:8025'
+      - '1025:1025'
+    networks:
+      - taskmanager-network
+
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: taskmanager-sql
@@ -57,9 +64,18 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:80
       ConnectionStrings__BTConnection: 'Server=sqlserver,1433;Database=BasicTraining;User Id=sa;Password=TaskManager2026;TrustServerCertificate=True;'
+      Auth__ResetPasswordUrl: '${AUTH_RESET_PASSWORD_URL:-http://localhost:5173/reset-password}'
+      Email__Smtp__Host: '${SMTP_HOST:-mailpit}'
+      Email__Smtp__Port: '${SMTP_PORT:-1025}'
+      Email__Smtp__EnableSsl: '${SMTP_ENABLE_SSL:-false}'
+      Email__Smtp__From: '${SMTP_FROM:-noreply@taskflow.local}'
+      Email__Smtp__Username: '${SMTP_USERNAME:-}'
+      Email__Smtp__Password: '${SMTP_PASSWORD:-}'
     depends_on:
       db-init:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
     networks:
       - taskmanager-network
 

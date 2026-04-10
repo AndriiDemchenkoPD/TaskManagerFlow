@@ -24,6 +24,12 @@ namespace TaskManagerApi.Controllers
 
         private int CurrentUserId()
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out var userId) && userId > 0)
+            {
+                return userId;
+            }
+
             var username = User.FindFirst(ClaimTypes.Name)?.Value;
 
             if (string.IsNullOrEmpty(username))

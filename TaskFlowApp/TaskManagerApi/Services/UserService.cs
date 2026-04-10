@@ -23,13 +23,11 @@ namespace TaskManagerApi.Services
 
             string query = @"
                 SELECT COUNT(1)
-                FROM Users
-                WHERE Username = @username
-                AND Password = @password";
+                FROM AppUsers
+                WHERE Email = @email";
 
             SqlCommand cmd = new SqlCommand(query, conn);
-            cmd.Parameters.AddWithValue("@username", request.Username);
-            cmd.Parameters.AddWithValue("@password", request.Password);
+            cmd.Parameters.AddWithValue("@email", request.Email);
 
             conn.Open();
 

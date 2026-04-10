@@ -313,6 +313,11 @@ export default function Dashboard() {
 				tagIds: selectedTagIds.map(Number)
 			})
 			await loadTasks()
+			setActiveProjectId('all')
+			setSearchQuery('')
+			setFilterStatus('All')
+			setFilterPriority('All')
+			setSortBy('created')
 			resetTaskForm()
 			setView('list')
 		} catch (err) {
@@ -1851,35 +1856,6 @@ export default function Dashboard() {
 									>
 										{p.projectName}
 									</h3>
-
-									{getTaskTagObjects(task).length > 0 && (
-										<div
-											style={{
-												display: 'flex',
-												flexWrap: 'wrap',
-												gap: 6,
-												marginBottom: 8
-											}}
-										>
-											{getTaskTagObjects(task).map(tag => (
-												<span
-													key={tag.tagId}
-													style={{
-														padding: '3px 7px',
-														borderRadius: 999,
-														fontSize: 10,
-														fontWeight: 700,
-														background: `${tag.color}20`,
-														color: tag.color,
-														border: `1px solid ${tag.color}35`,
-														fontFamily: FONT_BODY
-													}}
-												>
-													#{tag.tagName}
-												</span>
-											))}
-										</div>
-									)}
 									<p
 										style={{
 											fontSize: 13,
