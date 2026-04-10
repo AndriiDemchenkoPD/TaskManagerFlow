@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Net.Mail;
 using TaskManagerApi.DTOs;
 using TaskManagerApi.Services;
 using Microsoft.Extensions.Logging;
@@ -15,65 +17,131 @@ namespace TaskManagerApi.Controllers
     {
         private readonly IConfiguration _config;
         private readonly AuthService _authService;
+        private readonly IEmailService _emailService;
         private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IConfiguration config, AuthService authService, ILogger<AuthController> logger)
+        public AuthController(IConfiguration config, AuthService authService, IEmailService emailService, ILogger<AuthController> logger)
         {
             _config = config;
             _authService = authService;
+            _emailService = emailService;
             _logger = logger;
         }
 
         [HttpPost("register")]
-        public IActionResult Register(RegisterRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"Registration attempt for username: {request.Username}, email: {request.Email}");
-            try
+            if (!ModelState.IsValid)
             {
-                var success = _authService.Register(
-                    request.Username,
-                    request.Email,
-                    request.Password);
-
-                if (!success)
-                    return BadRequest(new { message = "Username or email already exists, or registration failed" });
-
-                return Ok(new { message = "User registered successfully" });
+                return ValidationProblem(ModelState);
             }
-            catch (Exception ex)
+
+            var result = await _authService.RegisterAsync(request, cancellationToken);
+
+            if (!result.Success)
             {
-                _logger.LogError($"Registration error for {request.Username}: {ex.Message}");
-                return BadRequest(new { message = $"Registration error: {ex.Message}" });
+                if (result.ErrorCode == "email_exists")
+                {
+                    return Conflict(new { message = result.ErrorMessage });
+                }
+
+                return BadRequest(new { message = result.ErrorMessage ?? "Registration failed" });
             }
+
+            return Ok(new { message = "User registered successfully" });
         }
 
         [HttpPost("login")]
-        public IActionResult Login(LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+            if (!ModelState.IsValid)
             {
-                _logger.LogWarning("Login attempt with missing username or password");
-                return BadRequest(new { message = "Username and password are required" });
+                return ValidationProblem(ModelState);
+            }
+
+            var authResult = await _authService.LoginAsync(request, cancellationToken);
+
+            if (authResult is null)
+            {
+                _logger.LogWarning("Invalid login attempt for email: {Email}", request.Email);
+                return Unauthorized(new { message = "Invalid credentials" });
+            }
+
+            var token = GenerateJwtToken(authResult.UserId, authResult.Username, authResult.Email);
+            return Ok(new LoginResponse { Token = token });
+        }
+
+        [HttpPost("forgot-password")]
+        [EnableRateLimiting("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var resetBaseUrl = _config["Auth:ResetPasswordUrl"] ?? "http://localhost:5173/reset-password";
+
+            try
+            {
+                await _authService.RequestPasswordResetAsync(request.Email, resetBaseUrl, cancellationToken);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Forgot password email configuration error");
+                return StatusCode(500, new { message = "Email service is not configured. Please set SMTP settings." });
+            }
+            catch (SmtpException ex)
+            {
+                _logger.LogError(ex, "SMTP error while sending password reset email");
+                return StatusCode(500, new { message = "Failed to send reset email. Please try again later." });
+            }
+
+            return Ok(new { message = "If the account exists, a reset link has been sent." });
+        }
+
+        [HttpGet("email-status")]
+        public IActionResult EmailStatus()
+        {
+            return Ok(new { configured = _emailService.IsConfigured() });
+        }
+
+        [HttpPost("email-test")]
+        public async Task<IActionResult> SendEmailTest([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
             }
 
             try
             {
-                bool valid = _authService.ValidateUser(request.Username, request.Password);
-
-                if (!valid)
-                {
-                    _logger.LogWarning("Invalid login attempt for username: {Username}", request.Username);
-                    return Unauthorized(new { message = "Invalid credentials" });
-                }
-
-                var token = GenerateJwtToken(request.Username);
-                return Ok(new LoginResponse { Token = token });
+                await _emailService.SendTestEmailAsync(request.Email, cancellationToken);
+                return Ok(new { message = "Test email sent successfully." });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during login for username: {Username}", request.Username);
-                return StatusCode(500, new { message = "Login failed due to server error" });
+                _logger.LogError(ex, "Failed to send SMTP test email");
+                return StatusCode(500, new { message = "SMTP test failed. Check server configuration and credentials." });
             }
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var result = await _authService.ResetPasswordAsync(request, cancellationToken);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { message = result.ErrorMessage ?? "Password reset failed" });
+            }
+
+            return Ok(new { message = "Password has been reset successfully" });
         }
 
         [HttpGet("test")]
@@ -82,7 +150,7 @@ namespace TaskManagerApi.Controllers
             return Ok(new { message = "API is working", timestamp = DateTime.Now });
         }
 
-        private string GenerateJwtToken(string username)
+        private string GenerateJwtToken(int userId, string username, string email)
         {
             var jwt = _config.GetSection("Jwt");
 
@@ -95,7 +163,9 @@ namespace TaskManagerApi.Controllers
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.Name, username)
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Name, username),
+                new Claim(ClaimTypes.Email, email)
             };
 
             var token = new JwtSecurityToken(

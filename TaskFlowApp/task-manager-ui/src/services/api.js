@@ -1,5 +1,20 @@
 const API_BASE = 'http://localhost:5022/api'
 
+async function parseApiError(response, fallbackMessage) {
+	const errorData = await response.json().catch(() => null)
+
+	if (errorData?.message) {
+		throw new Error(errorData.message)
+	}
+
+	if (errorData?.errors) {
+		const firstError = Object.values(errorData.errors).flat()[0]
+		throw new Error(firstError || fallbackMessage)
+	}
+
+	throw new Error(fallbackMessage)
+}
+
 /* ================= AUTH ================= */
 
 export async function loginUser(data) {
@@ -9,7 +24,9 @@ export async function loginUser(data) {
 		body: JSON.stringify(data)
 	})
 
-	if (!response.ok) throw new Error('Login failed')
+	if (!response.ok) {
+		await parseApiError(response, 'Login failed')
+	}
 
 	return response.json()
 }
@@ -22,8 +39,35 @@ export async function registerUser(data) {
 	})
 
 	if (!response.ok) {
-		const errorData = await response.json().catch(() => ({}))
-		throw new Error(errorData.message || 'Registration failed')
+		await parseApiError(response, 'Registration failed')
+	}
+
+	return response.json()
+}
+
+export async function forgotPassword(data) {
+	const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data)
+	})
+
+	if (!response.ok) {
+		await parseApiError(response, 'Could not send reset link')
+	}
+
+	return response.json()
+}
+
+export async function resetPassword(data) {
+	const response = await fetch(`${API_BASE}/auth/reset-password`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data)
+	})
+
+	if (!response.ok) {
+		await parseApiError(response, 'Password reset failed')
 	}
 
 	return response.json()

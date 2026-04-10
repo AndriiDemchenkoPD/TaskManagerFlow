@@ -48,4 +48,22 @@ BEGIN
 END
 GO
 
+-- 3. Create PasswordResetTokens table
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PasswordResetTokens')
+BEGIN
+    CREATE TABLE dbo.PasswordResetTokens (
+        Id INT PRIMARY KEY IDENTITY(1,1),
+        AppUserId INT NOT NULL,
+        TokenHash NVARCHAR(200) NOT NULL UNIQUE,
+        ExpiresAtUtc DATETIME2 NOT NULL,
+        CreatedAtUtc DATETIME2 NOT NULL,
+        UsedAtUtc DATETIME2 NULL,
+        FOREIGN KEY (AppUserId) REFERENCES AppUsers(Id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IX_PasswordResetTokens_AppUserId_ExpiresAtUtc
+        ON PasswordResetTokens(AppUserId, ExpiresAtUtc);
+END
+GO
+
 PRINT 'Base schema created successfully!';
