@@ -8,7 +8,6 @@ TaskManagerApi/
 ├── Controllers/
 │   ├── AuthController.cs              (Existing)
 │   ├── TaskController.cs              (Existing)
-│   ├── TaskDataCoreSaveController.cs  (Existing)
 │   ├── ProjectsController.cs          ✨ NEW
 │   ├── TagsController.cs              ✨ NEW
 │   ├── CommentsController.cs          ✨ NEW
@@ -19,7 +18,6 @@ TaskManagerApi/
 │   ├── AuthService.cs                 (Existing)
 │   ├── TaskService.cs                 (Existing)
 │   ├── AuditService.cs                (Existing)
-│   ├── TaskServiceDataCoreSave.cs     (Existing)
 │   ├── ProjectService.cs              ✨ NEW
 │   ├── TagService.cs                  ✨ NEW
 │   ├── CommentService.cs              ✨ NEW
@@ -59,12 +57,14 @@ TaskManagerApi/
 ## 🗄️ Database Schema
 
 ### Existing Tables
+
 - `AppUsers` - User accounts
-- `BT_Tasks` - Tasks (Enhanced with new columns)
+- `Tasks` - Tasks (Enhanced with new columns)
 - `AuditHdr` - Audit headers
 - `AuditDtl` - Audit details
 
 ### New Tables
+
 ```
 Projects
 ├── ProjectId (PK)
@@ -151,14 +151,14 @@ AppUsers (1) ──→ (Many) TaskComments
 AppUsers (1) ──→ (Many) TaskHistory
 AppUsers (1) ──→ (1) UserPreferences
 
-BT_Tasks (1) ──→ (Many) TaskComments
-BT_Tasks (1) ──→ (Many) Subtasks
-BT_Tasks (1) ──→ (Many) TaskAttachments
-BT_Tasks (1) ──→ (Many) TaskReminders
-BT_Tasks (1) ──→ (Many) TaskHistory
-BT_Tasks (Many) ──→ (Many) Tags (via TaskTags)
+Tasks (1) ──→ (Many) TaskComments
+Tasks (1) ──→ (Many) Subtasks
+Tasks (1) ──→ (Many) TaskAttachments
+Tasks (1) ──→ (Many) TaskReminders
+Tasks (1) ──→ (Many) TaskHistory
+Tasks (Many) ──→ (Many) Tags (via TaskTags)
 
-Projects (1) ──→ (Many) BT_Tasks
+Projects (1) ──→ (Many) Tasks
 ```
 
 ---
@@ -202,13 +202,13 @@ User-Specific Data Returned
 
 ## 📝 File Statistics
 
-| Category | Count | Status |
-|----------|-------|--------|
-| Controllers | 5 | ✨ NEW |
-| Services | 5 | ✨ NEW |
-| Models | 8 | ✨ NEW |
-| SQL Scripts | 1 | ✨ NEW |
-| Documentation | 2 | ✨ NEW |
+| Category            | Count  | Status      |
+| ------------------- | ------ | ----------- |
+| Controllers         | 5      | ✨ NEW      |
+| Services            | 5      | ✨ NEW      |
+| Models              | 8      | ✨ NEW      |
+| SQL Scripts         | 1      | ✨ NEW      |
+| Documentation       | 2      | ✨ NEW      |
 | **Total New Files** | **21** | ✅ Complete |
 
 ---
@@ -242,17 +242,17 @@ Build succeeded.
 
 ## 🎯 Feature Completion Status
 
-| Feature | Backend | Frontend | Status |
-|---------|---------|----------|--------|
-| Projects | ✅ | ⏳ | Ready |
-| Tags | ✅ | ⏳ | Ready |
-| Comments | ✅ | ⏳ | Ready |
-| Subtasks | ✅ | ⏳ | Ready |
-| Dashboard | ✅ | ⏳ | Ready |
-| Activity Log | ✅ | ⏳ | Ready |
-| Attachments | 🔧 | ⏳ | Scaffolded |
-| Reminders | 🔧 | ⏳ | Scaffolded |
-| Preferences | 🔧 | ⏳ | Scaffolded |
+| Feature      | Backend | Frontend | Status     |
+| ------------ | ------- | -------- | ---------- |
+| Projects     | ✅      | ⏳       | Ready      |
+| Tags         | ✅      | ⏳       | Ready      |
+| Comments     | ✅      | ⏳       | Ready      |
+| Subtasks     | ✅      | ⏳       | Ready      |
+| Dashboard    | ✅      | ⏳       | Ready      |
+| Activity Log | ✅      | ⏳       | Ready      |
+| Attachments  | 🔧      | ⏳       | Scaffolded |
+| Reminders    | 🔧      | ⏳       | Scaffolded |
+| Preferences  | 🔧      | ⏳       | Scaffolded |
 
 Legend: ✅ Complete | ⏳ Pending | 🔧 Scaffolded
 

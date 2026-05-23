@@ -28,7 +28,7 @@ namespace TaskManagerApi.Services
                                           nRecordedBy, dRecordedOnUTC, nRecordedAtTimeZone, 
                                           vRecordedAtOffSet, vRecordedSign, cReplicaFlag)
                     OUTPUT INSERTED.nAuditHdrNo
-                    VALUES ('BT_Tasks', 'dbo', @taskId, @opType, @userId, GETUTCDATE(), 2, '+05:30', @userSign, 'N')";
+                    VALUES ('Tasks', 'dbo', @taskId, @opType, @userId, GETUTCDATE(), 2, '+05:30', @userSign, 'N')\";
 
                 var hdrCmd = new SqlCommand(hdrQuery, conn, transaction);
                 hdrCmd.Parameters.AddWithValue("@taskId", taskId.ToString());
@@ -81,7 +81,7 @@ namespace TaskManagerApi.Services
                     d.vAuditRemark
                 FROM AuditHdr h
                 LEFT JOIN AuditDtl d ON h.nAuditHdrNo = d.nAuditHdrNo
-                WHERE h.vTableName = 'BT_Tasks' AND h.nRecordPK = @taskId
+                WHERE h.vTableName = 'Tasks' AND h.nRecordPK = @taskId
                 ORDER BY h.dRecordedOnUTC DESC";
 
             var cmd = new SqlCommand(query, conn);

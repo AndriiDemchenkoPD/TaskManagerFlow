@@ -23,7 +23,9 @@ namespace TaskManagerApi.Controllers
         private int CurrentUserId()
         {
             var username = User.FindFirst(ClaimTypes.Name)?.Value;
-            return _authService.GetUserId(username!);
+            if (string.IsNullOrEmpty(username))
+                throw new UnauthorizedAccessException("Invalid token");
+            return _authService.GetUserId(username);
         }
 
         [HttpGet]

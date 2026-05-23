@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import {
 	getTasks,
 	addTask,
@@ -29,33 +29,37 @@ const dark = {
 	info: '#60a5fa',
 	sidebar: '#0b0a1a',
 	inputBg: 'rgba(255,255,255,0.045)',
+	statBg: 'rgba(255,255,255,0.025)',
 	statBorder: 'rgba(255,255,255,0.04)',
 	logoutBorder: 'rgba(248,113,113,0.2)',
 	logoutBg: 'rgba(248,113,113,0.06)',
-	logoutColor: '#f87171'
+	logoutColor: '#f87171',
+	overlay: 'rgba(0,0,0,0.6)'
 }
 
 const light = {
-	bg: '#f4f3ff',
+	bg: '#f3f7fb',
 	surface: '#ffffff',
 	card: '#ffffff',
-	cardHover: '#f0effe',
-	border: 'rgba(99,85,239,0.12)',
-	accent: '#6355ef',
-	accentLt: '#8779f5',
-	text: '#1a1535',
-	muted: '#5c5480',
-	faint: '#9b94bf',
-	success: '#059669',
-	warning: '#d97706',
-	danger: '#dc2626',
-	info: '#2563eb',
-	sidebar: '#ffffff',
-	inputBg: '#f8f7ff',
-	statBorder: 'rgba(99,85,239,0.06)',
-	logoutBorder: 'rgba(220,38,38,0.2)',
-	logoutBg: 'rgba(220,38,38,0.06)',
-	logoutColor: '#dc2626'
+	cardHover: '#eef4ff',
+	border: 'rgba(15,23,42,0.11)',
+	accent: '#0f6fff',
+	accentLt: '#3f8cff',
+	text: '#0f172a',
+	muted: '#475569',
+	faint: '#64748b',
+	success: '#0f9d74',
+	warning: '#c27a08',
+	danger: '#cf2f2f',
+	info: '#155eef',
+	sidebar: '#f8fbff',
+	inputBg: '#f7fafe',
+	statBg: 'rgba(15,111,255,0.05)',
+	statBorder: 'rgba(15,23,42,0.06)',
+	logoutBorder: 'rgba(207,47,47,0.22)',
+	logoutBg: 'rgba(207,47,47,0.06)',
+	logoutColor: '#b42318',
+	overlay: 'rgba(15,23,42,0.3)'
 }
 
 /*  status palette  */
@@ -84,6 +88,8 @@ const NAV = [
 
 const FONT_DISPLAY = "'Outfit', sans-serif"
 const FONT_BODY = "'Plus Jakarta Sans', sans-serif"
+const TASK_DRAFT_KEY = 'taskflow.taskDraft'
+const DUE_SOON_MINUTES = 30
 
 export default function Dashboard() {
 	/*  all original state (untouched)  */
@@ -98,6 +104,7 @@ export default function Dashboard() {
 	const [tags, setTags] = useState([])
 	const [stats, setStats] = useState(null)
 	const [subtasks, setSubtasks] = useState([])
+	const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
 	const [comments, setComments] = useState([])
 	const [newComment, setNewComment] = useState('')
 	const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -116,6 +123,7 @@ export default function Dashboard() {
 	/*  NEW: Form fields for priority and due date  */
 	const [priority, setPriority] = useState('Medium')
 	const [dueDate, setDueDate] = useState('')
+	const [dueTime, setDueTime] = useState('')
 	const [newProjectName, setNewProjectName] = useState('')
 	const [newProjectDescription, setNewProjectDescription] = useState('')
 	const [newProjectColor, setNewProjectColor] = useState('#3B82F6')
@@ -126,6 +134,7 @@ export default function Dashboard() {
 	const [taskTags, setTaskTags] = useState([])
 	const [selectedTagIds, setSelectedTagIds] = useState([])
 	const [selectedTagId, setSelectedTagId] = useState('')
+	const notifiedRemindersRef = useRef(new Set())
 
 	/*  theme (UI only)  */
 	const [isDark, setIsDark] = useState(
@@ -142,6 +151,82 @@ export default function Dashboard() {
 			new Date(dueDate) < new Date() &&
 			new Date(dueDate).toDateString() !== new Date().toDateString()
 		)
+	}
+
+	const formatDueTime = dueTimeValue => {
+		if (!dueTimeValue) return ''
+		const asString = String(dueTimeValue)
+		return asString.length >= 5 ? asString.slice(0, 5) : asString
+	}
+
+	const normalizeDueTimeForApi = dueTimeValue => {
+		if (!dueTimeValue) return null
+		const asString = String(dueTimeValue).trim()
+		if (!asString) return null
+		return /^\d{2}:\d{2}$/.test(asString) ? `${asString}:00` : asString
+	}
+
+	const getTaskDueAt = task => {
+		if (!task?.dueDate) return null
+		const due = new Date(task.dueDate)
+		if (Number.isNaN(due.getTime())) return null
+
+		const dueTimeValue = formatDueTime(task.dueTime)
+		if (/^\d{2}:\d{2}$/.test(dueTimeValue)) {
+			const [hours, minutes] = dueTimeValue.split(':').map(Number)
+			due.setHours(hours, minutes, 0, 0)
+		}
+
+		return due
+	}
+
+	const canCompleteTask = async taskId => {
+		try {
+			const res = await axios.get(`${API_URL}/tasks/${taskId}/subtasks`, {
+				headers
+			})
+			const list = Array.isArray(res?.data?.subtasks) ? res.data.subtasks : []
+			if (list.length === 0) {
+				return true
+			}
+			const completion = Number(res?.data?.completionPercentage ?? 100)
+			if (completion < 100) {
+				alert('Спочатку завершіть усі підзадачі.')
+				return false
+			}
+			return true
+		} catch {
+			// If subtasks are unavailable, do not block completion.
+			return true
+		}
+	}
+
+	const notifyDueSoonTasks = currentTasks => {
+		if (typeof window === 'undefined' || typeof Notification === 'undefined') {
+			return
+		}
+
+		if (Notification.permission !== 'granted') {
+			return
+		}
+
+		const now = new Date()
+		const limit = new Date(now.getTime() + DUE_SOON_MINUTES * 60 * 1000)
+
+		currentTasks.forEach(task => {
+			if (task.status === 'Completed') return
+			const dueAt = getTaskDueAt(task)
+			if (!dueAt) return
+			if (dueAt < now || dueAt > limit) return
+
+			const dedupeKey = `${task.taskId}-${dueAt.toISOString()}`
+			if (notifiedRemindersRef.current.has(dedupeKey)) return
+
+			notifiedRemindersRef.current.add(dedupeKey)
+			new Notification('Нагадування по задачі', {
+				body: `"${task.title}" має дедлайн о ${dueAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+			})
+		})
 	}
 
 	const getFilteredAndSortedTasks = () => {
@@ -250,7 +335,87 @@ export default function Dashboard() {
 		loadUserProfile()
 		loadProjectsOnly()
 		loadTagsOnly()
+		if (
+			typeof Notification !== 'undefined' &&
+			Notification.permission === 'default'
+		) {
+			Notification.requestPermission().catch(() => {})
+		}
 	}, [])
+
+	useEffect(() => {
+		if (view === 'add' || view === 'edit') {
+			const draft = {
+				title,
+				description,
+				status,
+				priority,
+				dueDate,
+				dueTime,
+				projectId,
+				selectedTagIds
+			}
+			localStorage.setItem(TASK_DRAFT_KEY, JSON.stringify(draft))
+		}
+	}, [
+		view,
+		title,
+		description,
+		status,
+		priority,
+		dueDate,
+		dueTime,
+		projectId,
+		selectedTagIds
+	])
+
+	useEffect(() => {
+		if (view !== 'add') return
+		if (
+			title ||
+			description ||
+			dueDate ||
+			dueTime ||
+			projectId ||
+			selectedTagIds.length > 0
+		) {
+			return
+		}
+
+		const raw = localStorage.getItem(TASK_DRAFT_KEY)
+		if (!raw) return
+
+		try {
+			const draft = JSON.parse(raw)
+			setTitle(draft.title || '')
+			setDescription(draft.description || '')
+			setStatus(draft.status || 'Pending')
+			setPriority(draft.priority || 'Medium')
+			setDueDate(draft.dueDate || '')
+			setDueTime(draft.dueTime || '')
+			setProjectId(draft.projectId || '')
+			setSelectedTagIds(
+				Array.isArray(draft.selectedTagIds) ? draft.selectedTagIds : []
+			)
+		} catch {
+			localStorage.removeItem(TASK_DRAFT_KEY)
+		}
+	}, [view])
+
+	useEffect(() => {
+		notifyDueSoonTasks(tasks)
+	}, [tasks])
+
+	useEffect(() => {
+		const intervalId = setInterval(async () => {
+			await loadTasks()
+			if (view === 'dashboard') {
+				await loadDashboardStatsOnly()
+			}
+		}, 15000)
+
+		return () => clearInterval(intervalId)
+	}, [view])
 
 	const loadProjectsOnly = async () => {
 		try {
@@ -309,6 +474,7 @@ export default function Dashboard() {
 				priority,
 				category: 'General',
 				dueDate: dueDate || new Date().toISOString(),
+				dueTime: normalizeDueTimeForApi(dueTime),
 				projectId: projectId ? Number(projectId) : null,
 				tagIds: selectedTagIds.map(Number)
 			})
@@ -319,6 +485,7 @@ export default function Dashboard() {
 			setFilterPriority('All')
 			setSortBy('created')
 			resetTaskForm()
+			localStorage.removeItem(TASK_DRAFT_KEY)
 			setView('list')
 		} catch (err) {
 			console.error('Add task error:', err.response?.data || err.message)
@@ -334,6 +501,7 @@ export default function Dashboard() {
 		setStatus('Pending')
 		setPriority('Medium')
 		setDueDate('')
+		setDueTime('')
 		setProjectId('')
 		setSelectedTagIds([])
 	}
@@ -347,6 +515,7 @@ export default function Dashboard() {
 		setDueDate(
 			task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
 		)
+		setDueTime(formatDueTime(task.dueTime))
 		setProjectId(task.projectId ? String(task.projectId) : '')
 		const tagsForTask = await fetchTaskTags(task.taskId)
 		setSelectedTagIds(tagsForTask.map(tag => String(tag.tagId)))
@@ -366,6 +535,7 @@ export default function Dashboard() {
 					priority,
 					category: selectedTask.category || 'General',
 					dueDate: dueDate || new Date().toISOString(),
+					dueTime: normalizeDueTimeForApi(dueTime),
 					projectId: projectId ? Number(projectId) : null,
 					tagIds: selectedTagIds.map(Number)
 				},
@@ -373,6 +543,7 @@ export default function Dashboard() {
 			)
 			await loadTasks()
 			resetTaskForm()
+			localStorage.removeItem(TASK_DRAFT_KEY)
 			setView('list')
 		} catch (err) {
 			console.error('Edit task error:', err.response?.data || err.message)
@@ -386,6 +557,37 @@ export default function Dashboard() {
 			await loadTasks()
 		} catch (err) {
 			console.error(err)
+		}
+	}
+
+	const markTaskCompleted = async task => {
+		if (task.status === 'Completed') return
+		const allowed = await canCompleteTask(task.taskId)
+		if (!allowed) return
+
+		try {
+			await axios.put(
+				`${API_URL}/task/${task.taskId}`,
+				{
+					...task,
+					status: 'Completed',
+					dueDate: task.dueDate || new Date().toISOString(),
+					dueTime: task.dueTime || null,
+					priority: task.priority || 'Medium',
+					category: task.category || 'General',
+					projectId: task.projectId ?? null,
+					tagIds: Array.isArray(task.tagIds) ? task.tagIds : []
+				},
+				{ headers }
+			)
+
+			await loadTasks()
+			if (view === 'dashboard') {
+				await loadDashboardStatsOnly()
+			}
+		} catch (err) {
+			console.error('Complete task error:', err.response?.data || err.message)
+			alert('Не вдалося позначити задачу як виконану.')
 		}
 	}
 
@@ -455,15 +657,18 @@ export default function Dashboard() {
 		}
 	}
 
-	const fetchStats = async () => {
+	const loadDashboardStatsOnly = async () => {
 		try {
 			const res = await axios.get(`${API_URL}/dashboard/stats`, { headers })
 			setStats(res.data)
-			setView('dashboard')
 		} catch (err) {
 			console.error('Dashboard error:', err.response?.data || err.message)
-			alert('Failed to load dashboard. Make sure database tables exist.')
 		}
+	}
+
+	const fetchStats = async () => {
+		await loadDashboardStatsOnly()
+		setView('dashboard')
 	}
 
 	const fetchSubtasks = async taskId => {
@@ -474,6 +679,55 @@ export default function Dashboard() {
 			setSubtasks(res.data.subtasks)
 		} catch (err) {
 			console.error(err)
+		}
+	}
+
+	const addSubtaskToTask = async taskId => {
+		const titleValue = newSubtaskTitle.trim()
+		if (!titleValue) return
+
+		try {
+			await axios.post(
+				`${API_URL}/tasks/${taskId}/subtasks`,
+				{ title: titleValue },
+				{ headers }
+			)
+			setNewSubtaskTitle('')
+			await fetchSubtasks(taskId)
+		} catch (err) {
+			console.error('Add subtask error:', err.response?.data || err.message)
+			alert(err.response?.data?.message || 'Не вдалося додати підзадачу.')
+		}
+	}
+
+	const toggleSubtaskStatus = async (taskId, subtask) => {
+		try {
+			await axios.put(
+				`${API_URL}/tasks/${taskId}/subtasks/${subtask.subtaskId}`,
+				{ isCompleted: !subtask.isCompleted },
+				{ headers }
+			)
+
+			await fetchSubtasks(taskId)
+			await loadTasks()
+			if (view === 'dashboard') {
+				await loadDashboardStatsOnly()
+			}
+		} catch (err) {
+			console.error('Toggle subtask error:', err.response?.data || err.message)
+			alert(err.response?.data?.message || 'Не вдалося оновити підзадачу.')
+		}
+	}
+
+	const deleteSubtaskFromTask = async (taskId, subtaskId) => {
+		try {
+			await axios.delete(`${API_URL}/tasks/${taskId}/subtasks/${subtaskId}`, {
+				headers
+			})
+			await fetchSubtasks(taskId)
+		} catch (err) {
+			console.error('Delete subtask error:', err.response?.data || err.message)
+			alert(err.response?.data?.message || 'Не вдалося видалити підзадачу.')
 		}
 	}
 
@@ -505,6 +759,7 @@ export default function Dashboard() {
 
 	const viewTaskDetails = task => {
 		setSelectedTask(task)
+		setNewSubtaskTitle('')
 		fetchSubtasks(task.taskId)
 		fetchComments(task.taskId)
 		fetchTaskTags(task.taskId)
@@ -652,6 +907,14 @@ export default function Dashboard() {
 			return
 		}
 
+		if (statusTarget === 'Completed') {
+			const allowed = await canCompleteTask(task.taskId)
+			if (!allowed) {
+				setDragTaskId(null)
+				return
+			}
+		}
+
 		const previousTasks = tasks
 		const optimisticTasks = tasks.map(t =>
 			t.taskId === dragTaskId ? { ...t, status: statusTarget } : t
@@ -665,6 +928,7 @@ export default function Dashboard() {
 					...task,
 					status: statusTarget,
 					dueDate: task.dueDate || new Date().toISOString(),
+					dueTime: task.dueTime || null,
 					priority: task.priority || 'Medium',
 					category: task.category || 'General',
 					projectId: task.projectId ?? null
@@ -1198,15 +1462,26 @@ export default function Dashboard() {
 													</div>
 													<div style={{ display: 'flex', gap: 6 }}>
 														<button
+															style={S.iconBtn(C.success)}
+															title="Mark as completed"
+															onClick={() => markTaskCompleted(task)}
+														>
+															<span style={S.iconBtnText}>OK</span>
+														</button>
+														<button
 															style={S.iconBtn(C.info)}
 															title="Edit"
 															onClick={() => startEdit(task)}
-														></button>
+														>
+															<span style={S.iconBtnText}>ED</span>
+														</button>
 														<button
 															style={S.iconBtn(C.danger)}
 															title="Delete"
 															onClick={() => removeTask(task.taskId)}
-														></button>
+														>
+															<span style={S.iconBtnText}>DEL</span>
+														</button>
 													</div>
 												</div>
 
@@ -1247,6 +1522,9 @@ export default function Dashboard() {
 														}}
 													>
 														Due: {new Date(task.dueDate).toLocaleDateString()}
+														{task.dueTime
+															? ` at ${formatDueTime(task.dueTime)}`
+															: ''}
 													</div>
 												)}
 
@@ -1530,6 +1808,9 @@ export default function Dashboard() {
 																	}}
 																>
 																	{new Date(task.dueDate).toLocaleDateString()}
+																	{task.dueTime
+																		? ` ${formatDueTime(task.dueTime)}`
+																		: ''}
 																</div>
 															)}
 														</div>
@@ -1680,6 +1961,16 @@ export default function Dashboard() {
 									value={dueDate}
 									onChange={e => setDueDate(e.target.value)}
 									min={new Date().toISOString().split('T')[0]}
+								/>
+							</div>
+
+							<div style={S.formField}>
+								<label style={S.label}>Due Time</label>
+								<input
+									style={S.input}
+									type="time"
+									value={dueTime}
+									onChange={e => setDueTime(e.target.value)}
 								/>
 							</div>
 
@@ -2054,6 +2345,20 @@ export default function Dashboard() {
 									{projects.find(p => p.projectId === selectedTask.projectId)
 										?.projectName || 'No project'}
 								</span>
+								{selectedTask.dueDate && (
+									<span
+										style={{
+											color: C.faint,
+											fontFamily: FONT_BODY,
+											fontSize: 12
+										}}
+									>
+										Due {new Date(selectedTask.dueDate).toLocaleDateString()}
+										{selectedTask.dueTime
+											? ` ${formatDueTime(selectedTask.dueTime)}`
+											: ''}
+									</span>
+								)}
 							</div>
 						</div>
 
@@ -2123,6 +2428,26 @@ export default function Dashboard() {
 						{/* Subtasks */}
 						<div style={S.section}>
 							<p style={S.sectionLabel}>Subtasks</p>
+							<div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+								<input
+									style={{ ...S.input, margin: 0, flex: 1 }}
+									placeholder="New subtask"
+									value={newSubtaskTitle}
+									onChange={e => setNewSubtaskTitle(e.target.value)}
+									onKeyDown={e => {
+										if (e.key === 'Enter') {
+											e.preventDefault()
+											addSubtaskToTask(selectedTask.taskId)
+										}
+									}}
+								/>
+								<button
+									style={S.primaryBtn}
+									onClick={() => addSubtaskToTask(selectedTask.taskId)}
+								>
+									Add
+								</button>
+							</div>
 							{subtasks.length === 0 && (
 								<p
 									style={{
@@ -2139,7 +2464,7 @@ export default function Dashboard() {
 									<input
 										type="checkbox"
 										checked={s.isCompleted}
-										readOnly
+										onChange={() => toggleSubtaskStatus(selectedTask.taskId, s)}
 										style={{
 											accentColor: C.accent,
 											width: 15,
@@ -2157,6 +2482,15 @@ export default function Dashboard() {
 									>
 										{s.title}
 									</span>
+									<button
+										style={{ ...S.iconBtn(C.danger), width: 24, height: 24 }}
+										onClick={() =>
+											deleteSubtaskFromTask(selectedTask.taskId, s.subtaskId)
+										}
+										title="Delete subtask"
+									>
+										<span style={S.iconBtnText}>X</span>
+									</button>
 								</div>
 							))}
 						</div>
@@ -2400,10 +2734,7 @@ function makeStyles(C) {
 			flexShrink: 0
 		},
 		miniStats: {
-			background:
-				C.statBorder === 'rgba(255,255,255,0.04)'
-					? 'rgba(255,255,255,0.025)'
-					: 'rgba(99,85,239,0.04)',
+			background: C.statBg,
 			border: `1px solid ${C.border}`,
 			borderRadius: 10,
 			padding: '12px 14px',
@@ -2545,6 +2876,12 @@ function makeStyles(C) {
 			justifyContent: 'center',
 			transition: 'background 0.15s'
 		}),
+		iconBtnText: {
+			fontSize: 11,
+			fontWeight: 700,
+			fontFamily: FONT_BODY,
+			lineHeight: 1
+		},
 		detailsBtn: {
 			marginTop: 'auto',
 			padding: '8px 0',
@@ -2717,7 +3054,7 @@ function makeStyles(C) {
 			left: 0,
 			right: 0,
 			bottom: 0,
-			background: 'rgba(0,0,0,0.6)',
+			background: C.overlay,
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',

@@ -128,11 +128,10 @@ Additional documentation is included in this repository:
 - `API_REFERENCE.md`
 - `QUICK_SETUP_GUIDE.md`
 - `PROJECT_STRUCTURE.md`
-- `FEATURES_QUICK_REFERENCE.md`
 
 ## Author
 
-Andrii Demchenko (PD-23)
+Bhavya_Raval (PD-23)
 
 ## License
 

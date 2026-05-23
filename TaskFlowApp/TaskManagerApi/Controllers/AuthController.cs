@@ -107,6 +107,7 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpPost("email-test")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
         public async Task<IActionResult> SendEmailTest([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)

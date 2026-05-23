@@ -13,11 +13,13 @@ namespace TaskManagerApi.Controllers
     {
         private readonly UserService _userService;
         private readonly AuthService _authService;
+        private readonly ILogger<UserController> _logger;
 
-        public UserController(UserService userService, AuthService authService)
+        public UserController(UserService userService, AuthService authService, ILogger<UserController> logger)
         {
             _userService = userService;
             _authService = authService;
+            _logger = logger;
         }
 
         private int CurrentUserId()
@@ -33,18 +35,14 @@ namespace TaskManagerApi.Controllers
         {
             try
             {
-                Console.WriteLine("GetProfile called");
                 var username = User.FindFirst(ClaimTypes.Name)?.Value;
-                Console.WriteLine($"Username from token: {username}");
                 
                 if (string.IsNullOrEmpty(username))
                     return Unauthorized(new { message = "Invalid token - no username claim" });
                 
                 var userId = _authService.GetUserId(username);
-                Console.WriteLine($"UserId: {userId}");
                 
                 var user = _userService.GetUserById(userId);
-                Console.WriteLine($"User found: {user?.Username}");
                 
                 if (user == null)
                     return NotFound(new { message = "User not found" });
@@ -58,9 +56,8 @@ namespace TaskManagerApi.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetProfile: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                return StatusCode(500, new { message = ex.Message, details = ex.StackTrace });
+                _logger.LogError(ex, "Failed to get user profile");
+                return StatusCode(500, new { message = "Failed to load profile" });
             }
         }
 

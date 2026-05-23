@@ -23,13 +23,15 @@ namespace TaskManagerApi.Controllers
         private int CurrentUserId()
         {
             var username = User.FindFirst(ClaimTypes.Name)?.Value;
-            return _authService.GetUserId(username!);
+            if (string.IsNullOrEmpty(username))
+                throw new UnauthorizedAccessException("Invalid token");
+            return _authService.GetUserId(username);
         }
 
         [HttpGet]
         public IActionResult GetComments(int taskId)
         {
-            var comments = _commentService.GetTaskComments(taskId);
+            var comments = _commentService.GetTaskComments(taskId, CurrentUserId());
             return Ok(comments);
         }
 
@@ -40,7 +42,7 @@ namespace TaskManagerApi.Controllers
             comment.Id = CurrentUserId();
             comment.CreatedAt = DateTime.Now;
             comment.UpdatedAt = DateTime.Now;
-            if (_commentService.AddComment(comment))
+            if (_commentService.AddComment(comment, CurrentUserId()))
                 return Ok(new { message = "Comment added successfully" });
             return BadRequest(new { message = "Failed to add comment" });
         }
