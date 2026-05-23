@@ -13,7 +13,7 @@ services:
     container_name: taskmanager-sql
     environment:
       ACCEPT_EULA: Y
-      SA_PASSWORD: TaskManager2026
+      SA_PASSWORD: '${SA_PASSWORD:-<<SA_PASSWORD_PLACEHOLDER>>}'
     ports:
       - '1433:1433'
     volumes:
@@ -63,7 +63,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:80
-      ConnectionStrings__BTConnection: 'Server=sqlserver,1433;Database=BasicTraining;User Id=sa;Password=TaskManager2026;TrustServerCertificate=True;'
+      ConnectionStrings__BTConnection: '${BT_CONNECTION:-Server=sqlserver,1433;Database=BasicTraining;User Id=<<DB_USER>>;Password=<<DB_PASSWORD>>;TrustServerCertificate=True;}'
       Auth__ResetPasswordUrl: '${AUTH_RESET_PASSWORD_URL:-http://localhost:5173/reset-password}'
       Email__Smtp__Host: '${SMTP_HOST:-mailpit}'
       Email__Smtp__Port: '${SMTP_PORT:-1025}'
