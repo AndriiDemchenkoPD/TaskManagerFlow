@@ -27,6 +27,9 @@ NugetPackages/
 *.log
 Logs/
 
+# Python virtual env
+.venv/
+
 # ======================
 # OS Files
 # ======================
