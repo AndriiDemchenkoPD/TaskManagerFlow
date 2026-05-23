@@ -131,7 +131,7 @@ Additional documentation is included in this repository:
 
 ## Author
 
-Bhavya_Raval (PD-23)
+AndriiDemchenko
 
 ## License
 
