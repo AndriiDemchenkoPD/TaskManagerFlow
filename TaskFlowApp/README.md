@@ -121,6 +121,12 @@ UI default URL:
 - Main entities include users, tasks, projects, subtasks, tags, comments, and audit records.
 - Docker startup executes SQL initialization scripts from `TaskManagerApi/SQL`.
 
+## Secrets & configuration
+
+- Do not commit secrets (DB passwords, JWT keys, SMTP credentials) to the repository. Use environment variables, Docker secrets or a secret manager.
+- A template `.env.example` is provided — copy it to a local `.env` and fill real values for local development.
+- `appsettings.Development.json` is kept locally and removed from Git index; prefer environment variables for CI/containers.
+
 ## API and Documentation
 
 Additional documentation is included in this repository:
