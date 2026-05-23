@@ -23,7 +23,7 @@ namespace TaskManagerApi.Services
                     SUM(CASE WHEN Status!='Completed' AND DueDate < GETDATE() THEN 1 ELSE 0 END) as OverdueTasks,
                     SUM(CASE WHEN Status='In Progress' THEN 1 ELSE 0 END) as InProgressTasks,
                     CAST(SUM(CASE WHEN Status='Completed' THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(COUNT(*), 0) * 100 as CompletionPercentage
-                FROM BT_Tasks 
+                FROM Tasks 
                 WHERE UserId=@uid AND IsDeleted=0";
             
             var cmd = new SqlCommand(query, conn);
@@ -51,16 +51,18 @@ namespace TaskManagerApi.Services
             return stats;
         }
 
-        public List<TaskHistoryEntry> GetTaskActivityLog(int taskId)
+        public List<TaskHistoryEntry> GetTaskActivityLog(int taskId, int userId)
         {
             var history = new List<TaskHistoryEntry>();
             using var conn = new SqlConnection(Conn);
             string query = @"SELECT h.*, u.Username FROM TaskHistory h 
-                           LEFT JOIN AppUsers u ON h.UserId = u.Id 
-                           WHERE h.TaskId=@tid 
+                           LEFT JOIN AppUsers u ON h.UserId = u.Id
+                           INNER JOIN Tasks t ON t.TaskId = h.TaskId
+                           WHERE h.TaskId=@tid AND t.UserId=@uid
                            ORDER BY h.CreatedAt DESC";
             var cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@tid", taskId);
+            cmd.Parameters.AddWithValue("@uid", userId);
             conn.Open();
             var reader = cmd.ExecuteReader();
             while (reader.Read())

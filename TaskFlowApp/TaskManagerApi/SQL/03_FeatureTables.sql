@@ -2,39 +2,39 @@ USE BasicTraining;
 GO
 
 -- Ensure extra task fields exist
-IF COL_LENGTH('dbo.BT_Tasks', 'ParentTaskId') IS NULL
-    ALTER TABLE dbo.BT_Tasks ADD ParentTaskId INT NULL;
+IF COL_LENGTH('dbo.Tasks', 'ParentTaskId') IS NULL
+    ALTER TABLE dbo.Tasks ADD ParentTaskId INT NULL;
 GO
 
-IF COL_LENGTH('dbo.BT_Tasks', 'ProjectId') IS NULL
-    ALTER TABLE dbo.BT_Tasks ADD ProjectId INT NULL;
+IF COL_LENGTH('dbo.Tasks', 'ProjectId') IS NULL
+    ALTER TABLE dbo.Tasks ADD ProjectId INT NULL;
 GO
 
-IF COL_LENGTH('dbo.BT_Tasks', 'TimeSpentMinutes') IS NULL
-    ALTER TABLE dbo.BT_Tasks ADD TimeSpentMinutes INT DEFAULT 0;
+IF COL_LENGTH('dbo.Tasks', 'TimeSpentMinutes') IS NULL
+    ALTER TABLE dbo.Tasks ADD TimeSpentMinutes INT DEFAULT 0;
 GO
 
-IF COL_LENGTH('dbo.BT_Tasks', 'RecurrencePattern') IS NULL
-    ALTER TABLE dbo.BT_Tasks ADD RecurrencePattern NVARCHAR(50) NULL;
+IF COL_LENGTH('dbo.Tasks', 'RecurrencePattern') IS NULL
+    ALTER TABLE dbo.Tasks ADD RecurrencePattern NVARCHAR(50) NULL;
 GO
 
-IF COL_LENGTH('dbo.BT_Tasks', 'IsRecurring') IS NULL
-    ALTER TABLE dbo.BT_Tasks ADD IsRecurring BIT DEFAULT 0;
+IF COL_LENGTH('dbo.Tasks', 'IsRecurring') IS NULL
+    ALTER TABLE dbo.Tasks ADD IsRecurring BIT DEFAULT 0;
 GO
 
-IF COL_LENGTH('dbo.BT_Tasks', 'AssignedToUserId') IS NULL
-    ALTER TABLE dbo.BT_Tasks ADD AssignedToUserId INT NULL;
+IF COL_LENGTH('dbo.Tasks', 'AssignedToUserId') IS NULL
+    ALTER TABLE dbo.Tasks ADD AssignedToUserId INT NULL;
 GO
 
 -- Add missing foreign keys only if absent
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_BT_Tasks_ParentTaskId')
-    ALTER TABLE dbo.BT_Tasks
-    ADD CONSTRAINT FK_BT_Tasks_ParentTaskId FOREIGN KEY (ParentTaskId) REFERENCES dbo.BT_Tasks(TaskId);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Tasks_ParentTaskId')
+    ALTER TABLE dbo.Tasks
+    ADD CONSTRAINT FK_Tasks_ParentTaskId FOREIGN KEY (ParentTaskId) REFERENCES dbo.Tasks(TaskId);
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_BT_Tasks_AssignedToUserId')
-    ALTER TABLE dbo.BT_Tasks
-    ADD CONSTRAINT FK_BT_Tasks_AssignedToUserId FOREIGN KEY (AssignedToUserId) REFERENCES dbo.AppUsers(Id);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Tasks_AssignedToUserId')
+    ALTER TABLE dbo.Tasks
+    ADD CONSTRAINT FK_Tasks_AssignedToUserId FOREIGN KEY (AssignedToUserId) REFERENCES dbo.AppUsers(Id);
 GO
 
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Projects' AND schema_id = SCHEMA_ID('dbo'))
@@ -72,7 +72,7 @@ BEGIN
         TaskId INT NOT NULL,
         TagId INT NOT NULL,
         PRIMARY KEY (TaskId, TagId),
-        FOREIGN KEY (TaskId) REFERENCES dbo.BT_Tasks(TaskId) ON DELETE CASCADE,
+        FOREIGN KEY (TaskId) REFERENCES dbo.Tasks(TaskId) ON DELETE CASCADE,
         FOREIGN KEY (TagId) REFERENCES dbo.Tags(TagId) ON DELETE CASCADE
     );
 END
@@ -88,7 +88,7 @@ BEGIN
         CreatedAt DATETIME DEFAULT GETDATE(),
         UpdatedAt DATETIME DEFAULT GETDATE(),
         IsDeleted BIT DEFAULT 0,
-        FOREIGN KEY (TaskId) REFERENCES dbo.BT_Tasks(TaskId) ON DELETE CASCADE,
+        FOREIGN KEY (TaskId) REFERENCES dbo.Tasks(TaskId) ON DELETE CASCADE,
         FOREIGN KEY (UserId) REFERENCES dbo.AppUsers(Id)
     );
 END
@@ -103,7 +103,7 @@ BEGIN
         IsCompleted BIT DEFAULT 0,
         CreatedAt DATETIME DEFAULT GETDATE(),
         CompletedAt DATETIME NULL,
-        FOREIGN KEY (ParentTaskId) REFERENCES dbo.BT_Tasks(TaskId) ON DELETE CASCADE
+        FOREIGN KEY (ParentTaskId) REFERENCES dbo.Tasks(TaskId) ON DELETE CASCADE
     );
 END
 GO
@@ -118,7 +118,7 @@ BEGIN
         OldValue NVARCHAR(MAX),
         NewValue NVARCHAR(MAX),
         CreatedAt DATETIME DEFAULT GETDATE(),
-        FOREIGN KEY (TaskId) REFERENCES dbo.BT_Tasks(TaskId) ON DELETE CASCADE,
+        FOREIGN KEY (TaskId) REFERENCES dbo.Tasks(TaskId) ON DELETE CASCADE,
         FOREIGN KEY (UserId) REFERENCES dbo.AppUsers(Id)
     );
 END

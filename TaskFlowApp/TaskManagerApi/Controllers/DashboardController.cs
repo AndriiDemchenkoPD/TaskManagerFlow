@@ -22,7 +22,9 @@ namespace TaskManagerApi.Controllers
         private int CurrentUserId()
         {
             var username = User.FindFirst(ClaimTypes.Name)?.Value;
-            return _authService.GetUserId(username!);
+            if (string.IsNullOrEmpty(username))
+                throw new UnauthorizedAccessException("Invalid token");
+            return _authService.GetUserId(username);
         }
 
         [HttpGet("stats")]
@@ -35,7 +37,7 @@ namespace TaskManagerApi.Controllers
         [HttpGet("activity/{taskId}")]
         public IActionResult GetTaskActivity(int taskId)
         {
-            var activity = _dashboardService.GetTaskActivityLog(taskId);
+            var activity = _dashboardService.GetTaskActivityLog(taskId, CurrentUserId());
             return Ok(activity);
         }
     }

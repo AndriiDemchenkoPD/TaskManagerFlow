@@ -1,22 +1,22 @@
 USE BasicTraining;
 GO
 
--- Ensure BT_Tasks has columns used by dashboard queries
-IF COL_LENGTH('dbo.BT_Tasks', 'Status') IS NULL
+-- Ensure Tasks has columns used by dashboard queries
+IF COL_LENGTH('dbo.Tasks', 'Status') IS NULL
 BEGIN
-    ALTER TABLE dbo.BT_Tasks ADD Status NVARCHAR(20) DEFAULT 'Pending';
+    ALTER TABLE dbo.Tasks ADD Status NVARCHAR(20) DEFAULT 'Pending';
 END
 GO
 
-IF COL_LENGTH('dbo.BT_Tasks', 'IsDeleted') IS NULL
+IF COL_LENGTH('dbo.Tasks', 'IsDeleted') IS NULL
 BEGIN
-    ALTER TABLE dbo.BT_Tasks ADD IsDeleted BIT DEFAULT 0;
+    ALTER TABLE dbo.Tasks ADD IsDeleted BIT DEFAULT 0;
 END
 GO
 
-IF COL_LENGTH('dbo.BT_Tasks', 'CompletedAt') IS NULL
+IF COL_LENGTH('dbo.Tasks', 'CompletedAt') IS NULL
 BEGIN
-    ALTER TABLE dbo.BT_Tasks ADD CompletedAt DATETIME NULL;
+    ALTER TABLE dbo.Tasks ADD CompletedAt DATETIME NULL;
 END
 GO
 
@@ -47,7 +47,7 @@ BEGIN
         OldValue NVARCHAR(MAX),
         NewValue NVARCHAR(MAX),
         CreatedAt DATETIME DEFAULT GETDATE(),
-        FOREIGN KEY (TaskId) REFERENCES dbo.BT_Tasks(TaskId) ON DELETE CASCADE,
+        FOREIGN KEY (TaskId) REFERENCES dbo.Tasks(TaskId) ON DELETE CASCADE,
         FOREIGN KEY (UserId) REFERENCES dbo.AppUsers(Id)
     );
 END

@@ -7,6 +7,16 @@ namespace TaskManagerApi.Services
 {
     public class TaskService
     {
+        private static readonly HashSet<string> AllowedSortColumns = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CreatedAt", "DueDate", "Priority", "Status", "Title"
+        };
+
+        private static readonly HashSet<string> AllowedSortDirections = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "ASC", "DESC"
+        };
+
         private readonly IConfiguration _config;
         private readonly ILogger<TaskService> _logger;
         private readonly TagService _tagService;
@@ -26,22 +36,24 @@ namespace TaskManagerApi.Services
         {
             using SqlConnection conn = new SqlConnection(Conn);
             string alter = @"
-                IF COL_LENGTH('dbo.BT_Tasks', 'Status') IS NULL
-                    ALTER TABLE dbo.BT_Tasks ADD Status NVARCHAR(20) DEFAULT 'Pending';
-                IF COL_LENGTH('dbo.BT_Tasks', 'Category') IS NULL
-                    ALTER TABLE dbo.BT_Tasks ADD Category NVARCHAR(50) DEFAULT 'General';
-                IF COL_LENGTH('dbo.BT_Tasks', 'IsDeleted') IS NULL
-                    ALTER TABLE dbo.BT_Tasks ADD IsDeleted BIT DEFAULT 0;
-                IF COL_LENGTH('dbo.BT_Tasks', 'DueDate') IS NULL
-                    ALTER TABLE dbo.BT_Tasks ADD DueDate DATETIME NULL;
-                IF COL_LENGTH('dbo.BT_Tasks', 'CompletedAt') IS NULL
-                    ALTER TABLE dbo.BT_Tasks ADD CompletedAt DATETIME NULL;
-                IF COL_LENGTH('dbo.BT_Tasks', 'CreatedAt') IS NULL
-                    ALTER TABLE dbo.BT_Tasks ADD CreatedAt DATETIME DEFAULT GETDATE();
-                IF COL_LENGTH('dbo.BT_Tasks', 'UpdatedAt') IS NULL
-                    ALTER TABLE dbo.BT_Tasks ADD UpdatedAt DATETIME DEFAULT GETDATE();
-                IF COL_LENGTH('dbo.BT_Tasks', 'ProjectId') IS NULL
-                    ALTER TABLE dbo.BT_Tasks ADD ProjectId INT NULL;
+                IF COL_LENGTH('dbo.Tasks', 'Status') IS NULL
+                    ALTER TABLE dbo.Tasks ADD Status NVARCHAR(20) DEFAULT 'Pending';
+                IF COL_LENGTH('dbo.Tasks', 'Category') IS NULL
+                    ALTER TABLE dbo.Tasks ADD Category NVARCHAR(50) DEFAULT 'General';
+                IF COL_LENGTH('dbo.Tasks', 'IsDeleted') IS NULL
+                    ALTER TABLE dbo.Tasks ADD IsDeleted BIT DEFAULT 0;
+                IF COL_LENGTH('dbo.Tasks', 'DueDate') IS NULL
+                    ALTER TABLE dbo.Tasks ADD DueDate DATETIME NULL;
+                IF COL_LENGTH('dbo.Tasks', 'DueTime') IS NULL
+                    ALTER TABLE dbo.Tasks ADD DueTime TIME NULL;
+                IF COL_LENGTH('dbo.Tasks', 'CompletedAt') IS NULL
+                    ALTER TABLE dbo.Tasks ADD CompletedAt DATETIME NULL;
+                IF COL_LENGTH('dbo.Tasks', 'CreatedAt') IS NULL
+                    ALTER TABLE dbo.Tasks ADD CreatedAt DATETIME DEFAULT GETDATE();
+                IF COL_LENGTH('dbo.Tasks', 'UpdatedAt') IS NULL
+                    ALTER TABLE dbo.Tasks ADD UpdatedAt DATETIME DEFAULT GETDATE();
+                IF COL_LENGTH('dbo.Tasks', 'ProjectId') IS NULL
+                    ALTER TABLE dbo.Tasks ADD ProjectId INT NULL;
             ";
 
             try
@@ -52,7 +64,7 @@ namespace TaskManagerApi.Services
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not ensure BT_Tasks schema. This is safe to ignore if schema is already correct.");
+                _logger.LogWarning(ex, "Could not ensure Tasks schema. This is safe to ignore if schema is already correct.");
             }
         }
 
@@ -68,9 +80,9 @@ namespace TaskManagerApi.Services
                        ISNULL(Status, 'Pending') AS Status,
                        ISNULL(Priority, 'Medium') AS Priority,
                        ISNULL(Category, 'General') AS Category,
-                      DueDate, CreatedAt, ProjectId,
+                     DueDate, DueTime, CreatedAt, ProjectId,
                        CompletedAt, IsDeleted
-                FROM BT_Tasks
+                FROM Tasks
                 WHERE UserId=@uid AND ISNULL(IsDeleted,0)=0
                 ORDER BY CreatedAt DESC";
 
@@ -93,6 +105,7 @@ namespace TaskManagerApi.Services
                         Priority = reader["Priority"]?.ToString() ?? "Medium",
                         Category = reader["Category"]?.ToString() ?? "General",
                         DueDate = reader["DueDate"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["DueDate"],
+                        DueTime = reader["DueTime"] == DBNull.Value ? null : (TimeSpan?)reader["DueTime"],
                         CreatedAt = reader["CreatedAt"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["CreatedAt"],
                         ProjectId = reader["ProjectId"] == DBNull.Value ? null : (int?)reader["ProjectId"],
                         CompletedAt = reader["CompletedAt"] == DBNull.Value ? null : (DateTime?)reader["CompletedAt"],
@@ -130,16 +143,18 @@ namespace TaskManagerApi.Services
                 whereClauses.Add("DueDate <= @toDate");
 
             string whereClause = string.Join(" AND ", whereClauses);
-            string orderBy = $"ORDER BY {filter.SortBy} {filter.SortOrder}";
+            var safeSortBy = AllowedSortColumns.Contains(filter.SortBy) ? filter.SortBy : "CreatedAt";
+            var safeSortOrder = AllowedSortDirections.Contains(filter.SortOrder) ? filter.SortOrder.ToUpperInvariant() : "DESC";
+            string orderBy = $"ORDER BY [{safeSortBy}] {safeSortOrder}";
 
-            string countQuery = $"SELECT COUNT(*) FROM BT_Tasks WHERE {whereClause}";
+            string countQuery = $"SELECT COUNT(*) FROM Tasks WHERE {whereClause}";
             string query = $@"
                 SELECT TaskId, UserId, Title, Description,
                        ISNULL(Status, 'Pending') AS Status,
                        ISNULL(Priority, 'Medium') AS Priority,
                        ISNULL(Category, 'General') AS Category,
-                      DueDate, CreatedAt, ProjectId, CompletedAt, IsDeleted
-                FROM BT_Tasks
+                        DueDate, DueTime, CreatedAt, ProjectId, CompletedAt, IsDeleted
+                FROM Tasks
                 WHERE {whereClause}
                 {orderBy}
                 OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
@@ -202,6 +217,7 @@ namespace TaskManagerApi.Services
                         Priority = reader["Priority"]?.ToString() ?? "Medium",
                         Category = reader["Category"]?.ToString() ?? "General",
                         DueDate = reader["DueDate"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["DueDate"],
+                        DueTime = reader["DueTime"] == DBNull.Value ? null : (TimeSpan?)reader["DueTime"],
                         CreatedAt = reader["CreatedAt"] == DBNull.Value ? DateTime.MinValue : (DateTime)reader["CreatedAt"],
                         ProjectId = reader["ProjectId"] == DBNull.Value ? null : (int?)reader["ProjectId"],
                         CompletedAt = reader["CompletedAt"] == DBNull.Value ? null : (DateTime?)reader["CompletedAt"],
@@ -236,7 +252,7 @@ namespace TaskManagerApi.Services
                     SUM(CASE WHEN Status='In Progress' THEN 1 ELSE 0 END) as InProgress,
                     SUM(CASE WHEN DueDate < GETDATE() AND Status != 'Completed' THEN 1 ELSE 0 END) as Overdue,
                     SUM(CASE WHEN Priority='High' OR Priority='Critical' THEN 1 ELSE 0 END) as HighPriority
-                FROM BT_Tasks
+                FROM Tasks
                 WHERE UserId=@uid AND IsDeleted=0";
 
             SqlCommand cmd = new SqlCommand(query, conn);
@@ -270,7 +286,7 @@ namespace TaskManagerApi.Services
             try
             {
                 string query = @"
-                    UPDATE BT_Tasks
+                    UPDATE Tasks
                     SET Title=@t,
                         Description=@d,
                         Status=@s,
@@ -278,6 +294,7 @@ namespace TaskManagerApi.Services
                         Category=@c,
                         ProjectId=@projectId,
                         DueDate=@due,
+                        DueTime=@dueTime,
                         CompletedAt=@completed
                     WHERE TaskId=@id AND UserId=@uid";
 
@@ -290,6 +307,7 @@ namespace TaskManagerApi.Services
                 cmd.Parameters.AddWithValue("@c", task.Category);
                 cmd.Parameters.AddWithValue("@projectId", (object?)task.ProjectId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@due", task.DueDate);
+                cmd.Parameters.AddWithValue("@dueTime", (object?)task.DueTime ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@completed",
                     task.Status == "Completed" ? (object)DateTime.UtcNow : DBNull.Value);
                 cmd.Parameters.AddWithValue("@id", id);
@@ -321,9 +339,9 @@ namespace TaskManagerApi.Services
             try
             {
                 string query = @"
-                    INSERT INTO BT_Tasks
-                    (Title, Description, Status, Priority, Category, DueDate, ProjectId, UserId)
-                    VALUES (@t,@d,@s,@p,@c,@due,@projectId,@uid);
+                    INSERT INTO Tasks
+                    (Title, Description, Status, Priority, Category, DueDate, DueTime, ProjectId, UserId)
+                    VALUES (@t,@d,@s,@p,@c,@due,@dueTime,@projectId,@uid);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                 using var cmd = new SqlCommand(query, conn, transaction);
@@ -334,6 +352,7 @@ namespace TaskManagerApi.Services
                 cmd.Parameters.AddWithValue("@p", task.Priority);
                 cmd.Parameters.AddWithValue("@c", task.Category);
                 cmd.Parameters.AddWithValue("@due", task.DueDate);
+                cmd.Parameters.AddWithValue("@dueTime", (object?)task.DueTime ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@projectId", (object?)task.ProjectId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@uid", userId);
 
@@ -360,7 +379,7 @@ namespace TaskManagerApi.Services
             using SqlConnection conn = new SqlConnection(Conn);
 
             string query =
-                "UPDATE BT_Tasks SET IsDeleted=1 WHERE TaskId=@id AND UserId=@uid";
+                "UPDATE Tasks SET IsDeleted=1 WHERE TaskId=@id AND UserId=@uid";
 
             SqlCommand cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@id", taskId);
@@ -382,7 +401,7 @@ namespace TaskManagerApi.Services
             var query = $@"
                 SELECT tt.TaskId, tt.TagId
                 FROM TaskTags tt
-                INNER JOIN BT_Tasks task ON task.TaskId = tt.TaskId
+                INNER JOIN Tasks task ON task.TaskId = tt.TaskId
                 INNER JOIN Tags tag ON tag.TagId = tt.TagId
                 WHERE task.UserId=@uid AND tag.UserId=@uid AND tt.TaskId IN ({string.Join(",", parameterNames)})";
 

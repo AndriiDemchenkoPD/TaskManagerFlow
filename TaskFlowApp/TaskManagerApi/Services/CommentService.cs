@@ -13,16 +13,18 @@ namespace TaskManagerApi.Services
             _config = config;
         }
 
-        public List<TaskComment> GetTaskComments(int taskId)
+        public List<TaskComment> GetTaskComments(int taskId, int userId)
         {
             var comments = new List<TaskComment>();
             using var conn = new SqlConnection(Conn);
             string query = @"SELECT c.*, u.Username FROM TaskComments c 
                            LEFT JOIN AppUsers u ON c.UserId = u.Id 
-                           WHERE c.TaskId=@tid AND c.IsDeleted=0 
+                           INNER JOIN Tasks t ON t.TaskId = c.TaskId
+                           WHERE c.TaskId=@tid AND c.IsDeleted=0 AND t.UserId=@uid
                            ORDER BY c.CreatedAt DESC";
             var cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@tid", taskId);
+            cmd.Parameters.AddWithValue("@uid", userId);
             conn.Open();
             var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -42,14 +44,17 @@ namespace TaskManagerApi.Services
             return comments;
         }
 
-        public bool AddComment(TaskComment comment)
+        public bool AddComment(TaskComment comment, int userId)
         {
             using var conn = new SqlConnection(Conn);
-            string query = @"INSERT INTO TaskComments (TaskId, UserId, CommentText) 
-                           VALUES (@tid, @uid, @text)";
+            string query = @"
+                IF EXISTS (SELECT 1 FROM Tasks WHERE TaskId=@tid AND UserId=@ownerId)
+                    INSERT INTO TaskComments (TaskId, UserId, CommentText)
+                    VALUES (@tid, @uid, @text)";
             var cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@tid", comment.TaskId);
             cmd.Parameters.AddWithValue("@uid", comment.Id);
+            cmd.Parameters.AddWithValue("@ownerId", userId);
             cmd.Parameters.AddWithValue("@text", comment.CommentText);
             conn.Open();
             return cmd.ExecuteNonQuery() > 0;

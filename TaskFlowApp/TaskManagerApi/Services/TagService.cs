@@ -71,7 +71,7 @@ namespace TaskManagerApi.Services
             var unlinkCmd = new SqlCommand(@"
                 DELETE tt
                 FROM TaskTags tt
-                INNER JOIN BT_Tasks t ON t.TaskId = tt.TaskId
+                INNER JOIN Tasks t ON t.TaskId = tt.TaskId
                 WHERE tt.TagId=@tagId AND t.UserId=@uid", conn);
             unlinkCmd.Parameters.AddWithValue("@tagId", tagId);
             unlinkCmd.Parameters.AddWithValue("@uid", userId);
@@ -89,7 +89,7 @@ namespace TaskManagerApi.Services
             using var conn = new SqlConnection(Conn);
             string query = @"SELECT DISTINCT t.* FROM Tags t 
                            INNER JOIN TaskTags tt ON t.TagId = tt.TagId 
-                           INNER JOIN BT_Tasks task ON task.TaskId = tt.TaskId
+                           INNER JOIN Tasks task ON task.TaskId = tt.TaskId
                            WHERE tt.TaskId=@tid AND task.UserId=@uid AND t.UserId=@uid";
             var cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@tid", taskId);
@@ -143,7 +143,7 @@ namespace TaskManagerApi.Services
             string query = @"
                 DELETE tt
                 FROM TaskTags tt
-                INNER JOIN BT_Tasks task ON task.TaskId = tt.TaskId
+                INNER JOIN Tasks task ON task.TaskId = tt.TaskId
                 INNER JOIN Tags tag ON tag.TagId = tt.TagId
                 WHERE tt.TaskId=@tid AND tt.TagId=@tagid AND task.UserId=@uid AND tag.UserId=@uid";
 
@@ -167,7 +167,7 @@ namespace TaskManagerApi.Services
             using (var deleteCmd = new SqlCommand(@"
                 DELETE tt
                 FROM TaskTags tt
-                INNER JOIN BT_Tasks task ON task.TaskId = tt.TaskId
+                INNER JOIN Tasks task ON task.TaskId = tt.TaskId
                 WHERE tt.TaskId=@tid AND task.UserId=@uid", conn, transaction))
             {
                 deleteCmd.Parameters.AddWithValue("@tid", taskId);
@@ -227,7 +227,7 @@ namespace TaskManagerApi.Services
         {
             const string query = @"
                 SELECT COUNT(1)
-                FROM BT_Tasks task
+                FROM Tasks task
                 INNER JOIN Tags tag ON tag.TagId = @tagid
                 WHERE task.TaskId = @tid
                   AND task.UserId = @uid
@@ -245,7 +245,7 @@ namespace TaskManagerApi.Services
         {
             const string query = @"
                 SELECT COUNT(1)
-                FROM BT_Tasks
+                FROM Tasks
                 WHERE TaskId=@tid AND UserId=@uid";
 
             using var cmd = new SqlCommand(query, conn, transaction);

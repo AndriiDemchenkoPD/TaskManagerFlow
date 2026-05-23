@@ -1,12 +1,12 @@
--- Add new columns to BT_Tasks for new features
-ALTER TABLE BT_Tasks ADD
+-- Add new columns to Tasks for new features
+ALTER TABLE Tasks ADD
     ParentTaskId INT NULL,
     ProjectId INT NULL,
     TimeSpentMinutes INT DEFAULT 0,
     RecurrencePattern NVARCHAR(50) NULL,
     IsRecurring BIT DEFAULT 0,
     AssignedToUserId INT NULL,
-    FOREIGN KEY (ParentTaskId) REFERENCES BT_Tasks(TaskId),
+    FOREIGN KEY (ParentTaskId) REFERENCES Tasks(TaskId),
     FOREIGN KEY (AssignedToUserId) REFERENCES AppUsers(UserId);
 
 -- Create Projects table
@@ -37,7 +37,7 @@ CREATE TABLE TaskTags (
     TaskId INT NOT NULL,
     TagId INT NOT NULL,
     PRIMARY KEY (TaskId, TagId),
-    FOREIGN KEY (TaskId) REFERENCES BT_Tasks(TaskId) ON DELETE CASCADE,
+    FOREIGN KEY (TaskId) REFERENCES Tasks(TaskId) ON DELETE CASCADE,
     FOREIGN KEY (TagId) REFERENCES Tags(TagId) ON DELETE CASCADE
 );
 
@@ -50,7 +50,7 @@ CREATE TABLE TaskComments (
     CreatedAt DATETIME DEFAULT GETDATE(),
     UpdatedAt DATETIME DEFAULT GETDATE(),
     IsDeleted BIT DEFAULT 0,
-    FOREIGN KEY (TaskId) REFERENCES BT_Tasks(TaskId) ON DELETE CASCADE,
+    FOREIGN KEY (TaskId) REFERENCES Tasks(TaskId) ON DELETE CASCADE,
     FOREIGN KEY (UserId) REFERENCES AppUsers(Id)
 );
 
@@ -63,7 +63,7 @@ CREATE TABLE TaskAttachments (
     FileSize INT,
     UploadedBy INT NOT NULL,
     UploadedAt DATETIME DEFAULT GETDATE(),
-    FOREIGN KEY (TaskId) REFERENCES BT_Tasks(TaskId) ON DELETE CASCADE,
+    FOREIGN KEY (TaskId) REFERENCES Tasks(TaskId) ON DELETE CASCADE,
     FOREIGN KEY (UploadedBy) REFERENCES AppUsers(Id)
 );
 
@@ -75,7 +75,7 @@ CREATE TABLE Subtasks (
     IsCompleted BIT DEFAULT 0,
     CreatedAt DATETIME DEFAULT GETDATE(),
     CompletedAt DATETIME NULL,
-    FOREIGN KEY (ParentTaskId) REFERENCES BT_Tasks(TaskId) ON DELETE CASCADE
+    FOREIGN KEY (ParentTaskId) REFERENCES Tasks(TaskId) ON DELETE CASCADE
 );
 
 -- Create TaskReminders table
@@ -87,7 +87,7 @@ CREATE TABLE TaskReminders (
     ReminderType NVARCHAR(50) DEFAULT 'Email',
     IsSent BIT DEFAULT 0,
     SentAt DATETIME NULL,
-    FOREIGN KEY (TaskId) REFERENCES BT_Tasks(TaskId) ON DELETE CASCADE,
+    FOREIGN KEY (TaskId) REFERENCES Tasks(TaskId) ON DELETE CASCADE,
     FOREIGN KEY (UserId) REFERENCES AppUsers(Id)
 );
 
@@ -112,6 +112,6 @@ CREATE TABLE TaskHistory (
     OldValue NVARCHAR(MAX),
     NewValue NVARCHAR(MAX),
     CreatedAt DATETIME DEFAULT GETDATE(),
-    FOREIGN KEY (TaskId) REFERENCES BT_Tasks(TaskId) ON DELETE CASCADE,
+    FOREIGN KEY (TaskId) REFERENCES Tasks(TaskId) ON DELETE CASCADE,
     FOREIGN KEY (UserId) REFERENCES AppUsers(Id)
 );

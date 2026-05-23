@@ -2,7 +2,7 @@
 
 namespace TaskManagerApi.Models
 {
-    [Table("BT_Tasks", Schema = "dbo")]
+    [Table("Tasks", Schema = "dbo")]
     public class TaskItem
     {
         public int TaskId { get; set; }
@@ -12,6 +12,7 @@ namespace TaskManagerApi.Models
         public required string Priority { get; set; } = "Medium";
         public required string Category { get; set; } = "General";
         public DateTime DueDate { get; set; }
+        public TimeSpan? DueTime { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public int? ProjectId { get; set; }

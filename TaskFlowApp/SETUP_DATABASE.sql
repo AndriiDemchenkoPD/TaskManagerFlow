@@ -1,7 +1,7 @@
--- STEP 1: Add new columns to existing BT_Tasks table
+-- STEP 1: Add new columns to existing Tasks table
 -- Run this first to enhance your existing tasks
 
-ALTER TABLE BT_Tasks ADD 
+ALTER TABLE Tasks ADD 
     ParentTaskId INT NULL,
     ProjectId INT NULL,
     TimeSpentMinutes INT DEFAULT 0;
@@ -33,7 +33,7 @@ CREATE TABLE TaskTags (
     TaskId INT NOT NULL,
     TagId INT NOT NULL,
     PRIMARY KEY (TaskId, TagId),
-    FOREIGN KEY (TaskId) REFERENCES BT_Tasks(TaskId),
+    FOREIGN KEY (TaskId) REFERENCES Tasks(TaskId),
     FOREIGN KEY (TagId) REFERENCES Tags(TagId)
 );
 
@@ -46,7 +46,7 @@ CREATE TABLE TaskComments (
     CreatedAt DATETIME DEFAULT GETDATE(),
     UpdatedAt DATETIME DEFAULT GETDATE(),
     IsDeleted BIT DEFAULT 0,
-    FOREIGN KEY (TaskId) REFERENCES BT_Tasks(TaskId),
+    FOREIGN KEY (TaskId) REFERENCES Tasks(TaskId),
     FOREIGN KEY (UserId) REFERENCES AppUsers(UserId)
 );
 
@@ -58,7 +58,7 @@ CREATE TABLE Subtasks (
     IsCompleted BIT DEFAULT 0,
     CreatedAt DATETIME DEFAULT GETDATE(),
     CompletedAt DATETIME NULL,
-    FOREIGN KEY (ParentTaskId) REFERENCES BT_Tasks(TaskId)
+    FOREIGN KEY (ParentTaskId) REFERENCES Tasks(TaskId)
 );
 
 -- STEP 7: Insert sample data for testing

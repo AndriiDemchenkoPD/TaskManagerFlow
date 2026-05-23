@@ -23,10 +23,10 @@ BEGIN
 END
 GO
 
--- 2. Create BT_Tasks table (Main tasks table)
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BT_Tasks')
+-- 2. Create Tasks table (Main tasks table)
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Tasks')
 BEGIN
-    CREATE TABLE dbo.BT_Tasks (
+    CREATE TABLE dbo.Tasks (
         TaskId INT PRIMARY KEY IDENTITY(1,1),
         UserId INT NOT NULL,
         Title NVARCHAR(255) NOT NULL,
@@ -38,13 +38,14 @@ BEGIN
         CreatedAt DATETIME DEFAULT GETDATE(),
         UpdatedAt DATETIME DEFAULT GETDATE(),
         DueDate DATETIME NULL,
+        DueTime TIME NULL,
         CompletedAt DATETIME NULL,
         IsDeleted BIT DEFAULT 0,
         FOREIGN KEY (UserId) REFERENCES AppUsers(Id) ON DELETE CASCADE
     );
 
-    CREATE INDEX IX_BT_Tasks_UserId ON BT_Tasks(UserId);
-    CREATE INDEX IX_BT_Tasks_IsCompleted ON BT_Tasks(IsCompleted);
+    CREATE INDEX IX_Tasks_UserId ON Tasks(UserId);
+    CREATE INDEX IX_Tasks_IsCompleted ON Tasks(IsCompleted);
 END
 GO
 

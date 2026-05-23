@@ -46,10 +46,9 @@ namespace TaskManagerApi.Controllers
                 var tasks = _taskService.GetTasks(CurrentUserId());
                 return Ok(tasks);
             }
-            catch (Exception ex)
+            catch
             {
-                // Return a generic message to client but log exceptions for server diagnostics.
-                return Problem("Failed to load tasks. " + ex.Message);
+                return Problem("Failed to load tasks.");
             }
         }
 
