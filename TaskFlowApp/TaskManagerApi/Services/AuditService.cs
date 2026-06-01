@@ -22,7 +22,6 @@ namespace TaskManagerApi.Services
 
             try
             {
-                // Insert audit header
                 string hdrQuery = @"
                     INSERT INTO AuditHdr (vTableName, vSchemaName, nRecordPK, vOperationType, 
                                           nRecordedBy, dRecordedOnUTC, nRecordedAtTimeZone, 
@@ -38,7 +37,6 @@ namespace TaskManagerApi.Services
 
                 long auditHdrNo = (long)(decimal)hdrCmd.ExecuteScalar();
 
-                // Insert audit details for each changed field
                 foreach (var change in changes)
                 {
                     string dtlQuery = @"

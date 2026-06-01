@@ -11,11 +11,8 @@ async function parseApiError(response, fallbackMessage) {
 		const firstError = Object.values(errorData.errors).flat()[0]
 		throw new Error(firstError || fallbackMessage)
 	}
-
 	throw new Error(fallbackMessage)
 }
-
-/* ================= AUTH ================= */
 
 export async function loginUser(data) {
 	const response = await fetch(`${API_BASE}/auth/login`, {
@@ -73,16 +70,12 @@ export async function resetPassword(data) {
 	return response.json()
 }
 
-/* ================= TOKEN HELPER ================= */
-
 function authHeader() {
 	return {
 		'Content-Type': 'application/json',
 		Authorization: `Bearer ${localStorage.getItem('token')}`
 	}
 }
-
-/* ================= TASK APIs ================= */
 
 export async function getTasks() {
 	const res = await fetch(`${API_BASE}/task`, {
@@ -112,8 +105,6 @@ export async function deleteTask(id) {
 
 	if (!res.ok) throw new Error('Delete failed')
 }
-
-/* ================= USER PROFILE APIs ================= */
 
 export async function getUserProfile() {
 	const res = await fetch(`${API_BASE}/user/profile`, {
